@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plantão FDS — Manutenção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#D62300; --red-dark:#A81B00; --brown:#502314; --cream:#F5EBDC;
+    --cream-2:#EFE1CC; --yellow:#FFAA00; --wa:#1FA855; --wa-dark:#128C46;
+    --line:#DFCFB8; --muted:#8A7360;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif; background:var(--cream);
+    color:var(--brown); min-height:100vh;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 14px 90px}
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--red); color:#fff; padding:18px 14px 14px;
+    border-bottom:4px solid var(--brown);
+  }
+  .header-inner{max-width:760px; margin:0 auto}
+  .eyebrow{
+    font-family:'Baloo 2'; font-weight:700; font-size:.72rem; letter-spacing:.14em;
+    text-transform:uppercase; color:#FFD9A3;
+  }
+  h1{font-family:'Baloo 2'; font-weight:800; font-size:1.7rem; line-height:1.1; margin-top:2px}
+  .stamp{font-size:.78rem; opacity:.85; margin-top:4px}
+  .stamp button{
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.5); color:#fff;
+    font:inherit; font-size:.74rem; font-weight:700; cursor:pointer;
+    border-radius:999px; padding:2px 10px; margin-left:6px;
+  }
+
+  /* ---------- day toggle (assinatura) ---------- */
+  .days{
+    display:flex; gap:8px; margin-top:14px;
+  }
+  .day{
+    flex:1; border:2px solid rgba(255,255,255,.55); border-radius:999px;
+    background:transparent; color:#fff; padding:9px 6px; cursor:pointer;
+    font-family:'Baloo 2'; font-weight:700; font-size:.95rem; line-height:1.05;
+    transition:background .15s, color .15s;
+  }
+  .day small{display:block; font-family:'DM Sans'; font-weight:500; font-size:.68rem; opacity:.85}
+  .day.on{background:#fff; color:var(--red); border-color:#fff}
+  .day.on small{opacity:.7}
+  .day:focus-visible{outline:3px solid var(--yellow); outline-offset:2px}
+
+  /* ---------- filtros ---------- */
+  .filters{position:sticky; top:0; z-index:10; background:var(--cream);
+    padding:12px 0 8px; border-bottom:1px solid var(--line)}
+  .search{
+    width:100%; padding:11px 14px; border:2px solid var(--line); border-radius:12px;
+    background:#fff; font:inherit; font-size:.95rem; color:var(--brown);
+  }
+  .search:focus{outline:none; border-color:var(--red)}
+  .chips{display:flex; gap:7px; overflow-x:auto; padding:10px 2px 4px; scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    white-space:nowrap; border:2px solid var(--brown); background:#fff; color:var(--brown);
+    border-radius:999px; padding:6px 13px; font-family:'Baloo 2'; font-weight:700;
+    font-size:.82rem; cursor:pointer;
+  }
+  .chip.on{background:var(--brown); color:var(--cream)}
+  .chip .n{font-family:'DM Sans'; font-weight:500; font-size:.74rem; opacity:.75; margin-left:3px}
+  .chip:focus-visible{outline:3px solid var(--yellow); outline-offset:1px}
+
+  /* ---------- lista ---------- */
+  .group{margin-top:20px}
+  .group-h{
+    display:flex; align-items:baseline; gap:8px;
+    font-family:'Baloo 2'; font-weight:800; font-size:1.05rem;
+    border-bottom:3px solid var(--red); padding-bottom:4px;
+  }
+  .group-h .n{font-family:'DM Sans'; font-weight:500; font-size:.8rem; color:var(--muted)}
+  .person{
+    display:flex; align-items:center; gap:10px;
+    background:#fff; border:1px solid var(--line); border-radius:14px;
+    padding:10px 12px; margin-top:8px;
+  }
+  .info{flex:1; min-width:0}
+  .nome{font-weight:700; font-size:.98rem; line-height:1.2}
+  .meta{font-size:.8rem; color:var(--muted); margin-top:2px; line-height:1.35}
+  .cargo{
+    display:inline-block; background:var(--cream-2); color:var(--brown);
+    border-radius:6px; padding:1px 7px; font-size:.7rem; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; margin-bottom:3px;
+  }
+  .cargo.lead{background:var(--yellow); color:var(--brown)}
+  .btn-wa{
+    flex-shrink:0; display:flex; align-items:center; gap:6px;
+    background:var(--wa); color:#fff; border:none; border-radius:11px;
+    padding:10px 13px; font-family:'Baloo 2'; font-weight:700; font-size:.85rem;
+    cursor:pointer; text-decoration:none;
+  }
+  .btn-wa:active{background:var(--wa-dark)}
+  .btn-wa svg{width:17px; height:17px; fill:#fff}
+  .no-wa{
+    flex-shrink:0; font-size:.72rem; font-weight:700; color:var(--muted);
+    background:var(--cream-2); border-radius:9px; padding:8px 10px; text-align:center;
+    max-width:92px;
+  }
+
+  /* ---------- barra fixa ---------- */
+  .bar{
+    position:fixed; bottom:0; left:0; right:0; background:var(--brown); color:var(--cream);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .bar-inner{max-width:760px; margin:0 auto; display:flex; align-items:center; gap:12px}
+  .bar .count{font-size:.82rem; flex:1; line-height:1.3}
+  .bar .count b{font-family:'Baloo 2'; font-size:1.05rem}
+  .btn-copy{
+    background:var(--yellow); color:var(--brown); border:none; border-radius:11px;
+    padding:10px 16px; font-family:'Baloo 2'; font-weight:800; font-size:.88rem; cursor:pointer;
+  }
+  .btn-copy:active{filter:brightness(.92)}
+
+  .empty{
+    text-align:center; color:var(--muted); padding:48px 20px; font-size:.95rem;
+  }
+  .empty b{font-family:'Baloo 2'; color:var(--brown); display:block; font-size:1.1rem; margin-bottom:4px}
+
+  /* ---------- setup ---------- */
+  .setup{background:#fff; border:2px dashed var(--red); border-radius:16px;
+    padding:22px 18px; margin-top:24px; line-height:1.55; font-size:.92rem}
+  .setup h2{font-family:'Baloo 2'; color:var(--red); margin-bottom:8px}
+  .setup ol{padding-left:20px; margin-top:8px}
+  .setup li{margin-top:5px}
+  .setup code{background:var(--cream-2); padding:1px 6px; border-radius:5px; font-size:.85em}
+
+  @media (prefers-reduced-motion:no-preference){
+    .person{animation:up .18s ease both}
+    @keyframes up{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="eyebrow">Manutenção · Fim de semana</div>
+    <h1>Plantão por Regional</h1>
+    <div class="stamp" id="stamp">Carregando escala…</div>
+    <div class="days" id="days" role="tablist" aria-label="Dia do plantão"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="filters" id="filters" hidden>
+    <input class="search" id="search" type="search" placeholder="Buscar nome, setor ou cargo…" aria-label="Buscar">
+    <div class="chips" id="chips"></div>
+  </div>
+  <main id="list"></main>
+</div>
+
+<div class="bar" id="bar" hidden>
+  <div class="bar-inner">
+    <div class="count" id="count"></div>
+    <button class="btn-copy" id="copy">Copiar contatos</button>
+  </div>
+</div>
+
+<input type="file" id="file" accept=".xlsx,.xlsm" hidden>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO — o dashboard busca a planilha no próprio servidor (VPS).
+   Não precisa mudar nada se o index.html estiver na mesma pasta do
+   servidor_plantao.py. (Também aceita ?api=URL para apontar para outro lugar.)
+   ===================================================================== */
+const API_URL = 'plantao.xlsx';
+
+/* Apelidos para unificar regionais escritas de formas diferentes */
+const APELIDOS = {
+  'SPI N': 'SPI NORTE', 'SPI S': 'SPI SUL',
+  'RCL-BAHIA': 'RCL', 'MINAS-BA': 'MINAS - BA'
+};
+
+/* ==== PARSER DO MODELO ORIGINAL (blocos lado a lado) — usado no index.html e no teste ==== */
+const clean = v => String(v ?? '').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+
+const serialParaData = n => {
+  const d = new Date(Date.UTC(1899,11,30) + Math.round(n)*86400000);
+  return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear();
+};
+
+function parseDates(txt){
+  const t = clean(txt);
+  let m = t.match(/(\d{1,2})\s*[Ee]\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (m){
+    let y = m[4] || '2026'; if (y.length===2) y='20'+y;
+    const mo = m[3].padStart(2,'0');
+    return [m[1].padStart(2,'0')+'/'+mo+'/'+y, m[2].padStart(2,'0')+'/'+mo+'/'+y];
+  }
+  m = t.match(/(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?/);
+  if (m){
+    let y = m[3] || '2026'; if (y.length===2) y='20'+y;
+    return [m[1].padStart(2,'0')+'/'+m[2].padStart(2,'0')+'/'+y];
+  }
+  return [];
+}
+
+const ehSerial = v => typeof v === 'number' && v > 20000 && v < 60000;
+
+function parseGrids(grids){
+  const out = [];
+  for (const aba in grids){
+    const grid = grids[aba];
+    for (let r = 0; r < grid.length; r++){
+      const row = grid[r] || [];
+      for (let c = 0; c < row.length; c++){
+        if (clean(row[c]).toLowerCase() !== 'regional') continue;
+        const labels = [];
+        for (let i = 0; i < 6; i++) labels.push(clean(row[c+i]).toLowerCase());
+        if (!labels.includes('cargo') || !labels.includes('nome')) continue;
+
+        // título do bloco (linhas acima): "Plantão - Manutenção: ..."
+        let dates = [];
+        for (let rr = Math.max(0, r-5); rr < r; rr++)
+          for (let cc = Math.max(0, c-1); cc < c+7; cc++){
+            const v = clean((grid[rr]||[])[cc]);
+            if (/plant/i.test(v)){ const d = parseDates(v); if (d.length) dates = d; }
+          }
+
+        const col = {}; labels.forEach((l,i) => { if (l) col[l] = c+i; });
+        const get = (g,k) => col[k] !== undefined ? (g[col[k]] ?? '') : '';
+
+        for (let rr = r+1; rr < grid.length; rr++){
+          const g = grid[rr] || [];
+          const nome = clean(get(g,'nome')), cargo = clean(get(g,'cargo'));
+          if (!nome && !cargo) continue;
+          if (/^\d{1,3}$/.test(nome)) continue;              // linhas de contagem
+          if (nome.toLowerCase() === 'nome') break;           // próximo cabeçalho
+
+          let setor = '', rdates = [...dates];
+          const setRaw = get(g,'setor'), dataRaw = get(g,'data');
+          if (ehSerial(setRaw)) rdates = [serialParaData(setRaw)];
+          else setor = clean(setRaw);
+          if (ehSerial(dataRaw)) rdates = [serialParaData(dataRaw)];
+          else if (clean(dataRaw)){
+            const pd = parseDates(dataRaw);
+            if (pd.length) rdates = pd; else if (!setor) setor = clean(dataRaw);
+          }
+
+          const base = {
+            ABA: clean(aba), REGIONAL: clean(get(g,'regional')), SETOR: setor,
+            CARGO: cargo, NOME: nome,
+            'HORÁRIO': clean(get(g,'horário')) || clean(get(g,'horario')),
+            TELEFONE: clean(get(g,'telefone'))
+          };
+          for (const d of (rdates.length ? rdates : [''])) out.push({ ...base, DATA: d });
+        }
+      }
+    }
+  }
+  return dedupe(out);
+}
+
+const soDigitos = t => String(t||'').replace(/\D/g,'');
+
+function dedupe(rows){
+  rows.sort((a,b) => (a.ABA === 'BRASIL') - (b.ABA === 'BRASIL'));  // regionais primeiro
+  const seen = new Map(), out = [];
+  for (const r of rows){
+    if (!r.NOME) continue;
+    const k = r.DATA + '|' + r.NOME.toUpperCase() + '|' + (soDigitos(r.TELEFONE) || r.TELEFONE.toUpperCase());
+    if (seen.has(k)){
+      const e = seen.get(k);
+      if (!e.SETOR && r.SETOR) e.SETOR = r.SETOR;
+      if (!e.TELEFONE && r.TELEFONE) e.TELEFONE = r.TELEFONE;
+      continue;
+    }
+    seen.set(k, r); out.push(r);
+  }
+  return out;
+}
+
+
+/* ===================================================================== */
+const $ = s => document.querySelector(s);
+const WA_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.6.8-.8 1-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.4-2.9c-.3-.4 0-.5.1-.7l.4-.5c.1-.2.2-.3.3-.5 0-.2 0-.4-.1-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1.1 2.7c.1.2 1.9 2.8 4.5 3.9.6.3 1.1.4 1.5.6.6.2 1.2.2 1.6.1.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
+
+let all = [], day = '', regional = 'TODAS', q = '', updatedAt = '';
+
+const diaSemana = d => {
+  const [dd,mm,yy] = d.split('/').map(Number);
+  const nomes = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+  return nomes[new Date(yy, mm-1, dd).getDay()];
+};
+
+const normPhone = raw => {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) return digits;
+  if (digits.length === 10 || digits.length === 11) return '55' + digits;
+  return null;
+};
+
+const isLead = c => /GERENTE|COORDENADOR|SUPERVISOR/i.test(c || '');
+const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function filtered(){
+  return all.filter(p =>
+    p.DATA === day &&
+    (regional === 'TODAS' || p.REGIONAL.toUpperCase() === regional) &&
+    (!q || (p.NOME + ' ' + p.SETOR + ' ' + p.CARGO).toUpperCase().includes(q))
+  );
+}
+
+function render(){
+  const rows = filtered();
+  // agrupar por regional
+  const groups = {};
+  rows.forEach(p => { (groups[p.REGIONAL.toUpperCase() || '—'] ||= []).push(p); });
+  const names = Object.keys(groups).sort((a,b) =>
+    (a === 'BRASIL' ? -1 : b === 'BRASIL' ? 1 : a.localeCompare(b)));
+
+  const list = $('#list');
+  if (!rows.length){
+    list.innerHTML = '<div class="empty"><b>Ninguém encontrado</b>Ajuste a busca ou os filtros acima.</div>';
+  } else {
+    list.innerHTML = names.map(g => `
+      <section class="group">
+        <div class="group-h">${esc(g)} <span class="n">${groups[g].length} no plantão</span></div>
+        ${groups[g].map(card).join('')}
+      </section>`).join('');
+  }
+  const semTel = rows.filter(p => !normPhone(p.TELEFONE)).length;
+  $('#count').innerHTML = `<b>${rows.length}</b> no plantão de ${day}` +
+    (semTel ? ` · ${semTel} sem WhatsApp` : '');
+  $('#bar').hidden = false;
+}
+
+function card(p){
+  const tel = normPhone(p.TELEFONE);
+  const msg = encodeURIComponent(`Olá ${p.NOME.split(' ')[0]}! Sobre o plantão de manutenção de ${day} —`);
+  const action = tel
+    ? `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${msg}" aria-label="Chamar ${esc(p.NOME)} no WhatsApp">${WA_SVG}Chamar</a>`
+    : `<span class="no-wa">${esc(p.TELEFONE || 'Sem telefone')}</span>`;
+  return `
+    <div class="person">
+      <div class="info">
+        <span class="cargo ${isLead(p.CARGO) ? 'lead' : ''}">${esc(p.CARGO || '—')}</span>
+        <div class="nome">${esc(p.NOME)}</div>
+        <div class="meta">${[p.SETOR, p.HORÁRIO, tel ? p.TELEFONE : ''].filter(Boolean).map(esc).join(' · ')}</div>
+      </div>
+      ${action}
+    </div>`;
+}
+
+const dataNum = d => { const [a,b,c] = d.split('/'); return new Date(+c, b-1, +a).getTime(); };
+
+function renderDays(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const todas = [...new Set(all.map(p => p.DATA))].filter(Boolean)
+    .sort((a,b) => dataNum(a) - dataNum(b));
+  // mantém datas de anteontem em diante (até 30 dias à frente); senão, as 2 últimas
+  let dates = todas.filter(d => {
+    const diff = (dataNum(d) - hoje.getTime()) / 86400000;
+    return diff >= -2 && diff <= 30;
+  }).slice(0, 4);
+  if (!dates.length) dates = todas.slice(-2);
+  if (!day || !dates.includes(day)) {
+    const hojeStr = String(hoje.getDate()).padStart(2,'0') + '/' +
+      String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+    day = dates.includes(hojeStr) ? hojeStr : dates[0] || '';
+  }
+  $('#days').innerHTML = dates.map(d => `
+    <button class="day ${d === day ? 'on' : ''}" role="tab" aria-selected="${d === day}" data-d="${d}">
+      ${diaSemana(d)}<small>${d.slice(0,5)}</small>
+    </button>`).join('');
+  $('#days').querySelectorAll('.day').forEach(b =>
+    b.onclick = () => { day = b.dataset.d; renderDays(); renderChips(); render(); });
+}
+
+function renderChips(){
+  const regs = [...new Set(all.filter(p => p.DATA === day).map(p => p.REGIONAL.toUpperCase()))]
+    .filter(Boolean).sort((a,b) => (a === 'BRASIL' ? -1 : b === 'BRASIL' ? 1 : a.localeCompare(b)));
+  if (regional !== 'TODAS' && !regs.includes(regional)) regional = 'TODAS';
+  const count = r => all.filter(p => p.DATA === day && (r === 'TODAS' || p.REGIONAL.toUpperCase() === r)).length;
+  $('#chips').innerHTML = ['TODAS', ...regs].map(r => `
+    <button class="chip ${r === regional ? 'on' : ''}" data-r="${r}">${r}<span class="n">${count(r)}</span></button>`).join('');
+  $('#chips').querySelectorAll('.chip').forEach(b =>
+    b.onclick = () => { regional = b.dataset.r; renderChips(); render(); });
+}
+
+$('#search').oninput = e => { q = e.target.value.trim().toUpperCase(); render(); };
+
+$('#copy').onclick = async () => {
+  const rows = filtered();
+  const txt = `PLANTÃO MANUTENÇÃO — ${day}\n\n` + rows.map(p => {
+    const tel = normPhone(p.TELEFONE);
+    return `${p.CARGO} ${p.REGIONAL}${p.SETOR ? '/' + p.SETOR : ''} — ${p.NOME} — ${tel ? '+' + tel : 'SEM TELEFONE'}`;
+  }).join('\n');
+  try {
+    await navigator.clipboard.writeText(txt);
+    $('#copy').textContent = 'Copiado!';
+  } catch {
+    prompt('Copie a lista abaixo:', txt);
+  }
+  setTimeout(() => $('#copy').textContent = 'Copiar contatos', 1800);
+};
+
+function setupScreen(){
+  $('#stamp').innerHTML = `Configuração pendente <button id="local">abrir arquivo</button>`;
+  ligarBotoes();
+  $('#list').innerHTML = `
+    <div class="setup">
+      <h2>Duas formas de usar</h2>
+      <b>Agora, sem configurar nada:</b> toque em <b>abrir arquivo</b> (acima) e escolha a planilha de plantão no seu computador ou celular.
+      <br><br>
+      <b>Automático (recomendado):</b>
+      <ol>
+        <li>No Cloudflare, crie o Worker com o <code>worker.js</code>, o namespace KV <code>PLANTAO</code> e defina uma senha na <code>CHAVE</code>.</li>
+        <li>No PC do trabalho, agende o <code>enviar_plantao.ps1</code> no Agendador de Tarefas (ele manda a planilha do OneDrive para o worker).</li>
+        <li>Cole a URL do worker na constante <code>API_URL</code> deste arquivo.</li>
+      </ol>
+    </div>`;
+}
+
+function processarWorkbook(wb, origem){
+  const grids = {};
+  wb.SheetNames.forEach(n => {
+    grids[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' });
+  });
+  all = parseGrids(grids).map(p => {
+    let reg = (p.REGIONAL || p.ABA).toUpperCase();
+    reg = APELIDOS[reg] || reg;
+    return { ...p, REGIONAL: reg };
+  }).filter(p => p.NOME && p.DATA);
+  if (!all.length) throw new Error('Nenhum plantão encontrado na planilha — confira se é o arquivo certo.');
+  updatedAt = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  $('#stamp').innerHTML = `${esc(origem)} · ${all.length} registros ` +
+    `<button id="reload">atualizar</button> <button id="local">abrir arquivo</button>`;
+  ligarBotoes();
+  $('#filters').hidden = false;
+  renderDays(); renderChips(); render();
+}
+
+function ligarBotoes(){
+  const r = $('#reload'); if (r) r.onclick = load;
+  const l = $('#local'); if (l) l.onclick = () => $('#file').click();
+}
+
+$('#file').onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try { processarWorkbook(XLSX.read(fr.result), `Arquivo ${f.name} aberto`); }
+    catch (err) { mostrarErro(err.message); }
+  };
+  fr.readAsArrayBuffer(f);
+  e.target.value = '';
+};
+
+function mostrarErro(msg){
+  $('#stamp').innerHTML = `Não foi possível carregar. <button id="local">abrir arquivo</button>`;
+  ligarBotoes();
+  $('#list').innerHTML = `<div class="empty"><b>Erro ao carregar</b>${esc(msg)}</div>`;
+}
+
+async function load(){
+  const api = new URLSearchParams(location.search).get('api') || API_URL;
+  if (!api || api.startsWith('COLE_AQUI')) return setupScreen();
+  $('#stamp').textContent = 'Carregando escala…';
+  try {
+    const res = await fetch(api + (api.includes('?') ? '&' : '?') + 't=' + Date.now());
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('json')) {
+      const err = await res.json();
+      throw new Error(err.erro || 'Resposta inesperada do worker');
+    }
+    const buf = await res.arrayBuffer();
+    const enviado = res.headers.get('x-enviado-em');
+    const quando = enviado
+      ? 'Planilha enviada em ' + new Date(enviado).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : 'Excel lido às ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    processarWorkbook(XLSX.read(buf), quando);
+  } catch (e) {
+    mostrarErro(e.message + ' — confira o worker, ou abra o arquivo direto do seu computador.');
+  }
+}
+load();
+</script>
+</body>
+</html>
