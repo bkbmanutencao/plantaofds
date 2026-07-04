@@ -392,6 +392,23 @@ function heroCard(p){
     </div>${acao}</div>`;
 }
 
+function card(p){
+  const tel = normPhone(p.TELEFONE);
+  const msg = encodeURIComponent(`Olá ${p.NOME.split(' ')[0]}! Sobre o plantão de manutenção de ${day} —`);
+  const action = tel
+    ? `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${msg}" aria-label="Chamar ${esc(p.NOME)} no WhatsApp">${WA_SVG}Chamar</a>`
+    : `<span class="no-wa">${esc(p.TELEFONE || 'Sem telefone')}</span>`;
+  return `
+    <div class="person">
+      <div class="info">
+        <span class="cargo ${isLead(p.CARGO) ? 'lead' : ''}">${esc(p.CARGO || '—')}</span>
+        <div class="nome">${esc(p.NOME)}</div>
+        <div class="meta">${[p.SETOR, p['HORÁRIO'], tel ? p.TELEFONE : ''].filter(Boolean).map(esc).join(' · ')}</div>
+      </div>
+      ${action}
+    </div>`;
+}
+
 const dataNum = d => { const [a,b,c] = d.split('/'); return new Date(+c, b-1, +a).getTime(); };
 
 function renderDays(){
