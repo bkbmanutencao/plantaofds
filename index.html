@@ -122,6 +122,22 @@
   }
   .btn-copy:active{filter:brightness(.92)}
 
+  /* ---------- destaque: quem está de plantão ---------- */
+  .heroes{display:grid; gap:12px; margin-top:16px}
+  @media(min-width:620px){ .heroes{grid-template-columns:1fr 1fr; align-items:start} }
+  .hero{border-radius:18px; padding:14px 14px 12px; color:#fff}
+  .hero-br{background:var(--red)}
+  .hero-sp{background:var(--brown); color:var(--cream)}
+  .hero h2{font-family:'Baloo 2'; font-weight:800; font-size:.82rem; letter-spacing:.13em; text-transform:uppercase; opacity:.92}
+  .hcard{display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.13); border-radius:12px; padding:9px 12px; margin-top:8px}
+  .hcard.lead{background:var(--yellow); color:var(--brown)}
+  .hinfo{flex:1; min-width:0}
+  .hcargo{font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; opacity:.85}
+  .hnome{font-family:'Baloo 2'; font-weight:800; font-size:1.12rem; line-height:1.15; word-break:break-word}
+  .hbtn{padding:9px 11px}
+  .hsem{font-size:.68rem; font-weight:700; opacity:.75; text-align:center}
+  .sec-title{font-family:'Baloo 2'; font-weight:800; font-size:.82rem; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin-top:26px}
+
   .empty{
     text-align:center; color:var(--muted); padding:48px 20px; font-size:.95rem;
   }
@@ -209,6 +225,16 @@ function parseDates(txt){
 
 const ehSerial = v => typeof v === 'number' && v > 20000 && v < 60000;
 
+// aceita serial do Excel, Date do SheetJS ou texto ISO ("2026-07-04 ...")
+function comoData(v){
+  if (ehSerial(v)) return serialParaData(v);
+  if (v instanceof Date && !isNaN(v))
+    return String(v.getDate()).padStart(2,'0')+'/'+String(v.getMonth()+1).padStart(2,'0')+'/'+v.getFullYear();
+  const m = String(v ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[3]+'/'+m[2]+'/'+m[1];
+  return null;
+}
+
 function parseGrids(grids){
   const out = [];
   for (const aba in grids){
@@ -241,9 +267,10 @@ function parseGrids(grids){
 
           let setor = '', rdates = [...dates];
           const setRaw = get(g,'setor'), dataRaw = get(g,'data');
-          if (ehSerial(setRaw)) rdates = [serialParaData(setRaw)];
+          const dSet = comoData(setRaw), dDat = comoData(dataRaw);
+          if (dSet) rdates = [dSet];               // data por linha (aba BRASIL)
           else setor = clean(setRaw);
-          if (ehSerial(dataRaw)) rdates = [serialParaData(dataRaw)];
+          if (dDat) rdates = [dDat];
           else if (clean(dataRaw)){
             const pd = parseDates(dataRaw);
             if (pd.length) rdates = pd; else if (!setor) setor = clean(dataRaw);
@@ -266,7 +293,7 @@ function parseGrids(grids){
 const soDigitos = t => String(t||'').replace(/\D/g,'');
 
 function dedupe(rows){
-  rows.sort((a,b) => (a.ABA === 'BRASIL') - (b.ABA === 'BRASIL'));  // regionais primeiro
+  rows.sort((a,b) => (b.ABA === 'BRASIL') - (a.ABA === 'BRASIL'));  // aba BRASIL primeiro (vira o destaque)
   const seen = new Map(), out = [];
   for (const r of rows){
     if (!r.NOME) continue;
@@ -306,53 +333,63 @@ const normPhone = raw => {
 const isLead = c => /GERENTE|COORDENADOR|SUPERVISOR/i.test(c || '');
 const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 
-function filtered(){
-  return all.filter(p =>
-    p.DATA === day &&
-    (regional === 'TODAS' || p.REGIONAL.toUpperCase() === regional) &&
-    (!q || (p.NOME + ' ' + p.SETOR + ' ' + p.CARGO).toUpperCase().includes(q))
-  );
+function visiveis(){
+  const dest = all.filter(p => p.ABA === 'BRASIL' && p.DATA === day &&
+    (!q || (p.NOME + ' ' + p.CARGO + ' ' + p.REGIONAL).toUpperCase().includes(q)));
+  const tec = all.filter(p => p.ABA !== 'BRASIL' && p.DATA === day &&
+    (regional === 'TODAS' || p.REGIONAL === regional) &&
+    (!q || (p.NOME + ' ' + p.SETOR + ' ' + p.CARGO).toUpperCase().includes(q)));
+  return { dest, tec };
 }
 
-function render(){
-  const rows = filtered();
-  // agrupar por regional
-  const groups = {};
-  rows.forEach(p => { (groups[p.REGIONAL.toUpperCase() || '—'] ||= []).push(p); });
-  const names = Object.keys(groups).sort((a,b) =>
-    (a === 'BRASIL' ? -1 : b === 'BRASIL' ? 1 : a.localeCompare(b)));
+const rank = c => /GERENTE/i.test(c) ? 0 : /COORDENADOR/i.test(c) ? 1 : /CCM|SISTEMA/i.test(c) ? 2 : 3;
+const porRank = (a,b) => rank(a.CARGO) - rank(b.CARGO) || a.REGIONAL.localeCompare(b.REGIONAL);
 
-  const list = $('#list');
-  if (!rows.length){
-    list.innerHTML = '<div class="empty"><b>Ninguém encontrado</b>Ajuste a busca ou os filtros acima.</div>';
-  } else {
-    list.innerHTML = names.map(g => `
+function render(){
+  const { dest, tec } = visiveis();
+  const sp = dest.filter(p => p.REGIONAL.startsWith('SP')).sort(porRank);
+  const br = dest.filter(p => !p.REGIONAL.startsWith('SP')).sort(porRank);
+
+  const groups = {};
+  tec.forEach(p => { (groups[p.REGIONAL || '—'] ||= []).push(p); });
+  const names = Object.keys(groups).sort();
+
+  let html = '';
+  if (br.length || sp.length){
+    html += `<div class="heroes">` +
+      (br.length ? `<section class="hero hero-br"><h2>Plantão Brasil</h2>${br.map(heroCard).join('')}</section>` : '') +
+      (sp.length ? `<section class="hero hero-sp"><h2>Plantão São Paulo</h2>${sp.map(heroCard).join('')}</section>` : '') +
+      `</div>`;
+  }
+  if (names.length){
+    html += `<div class="sec-title">Técnicos por regional</div>` +
+      names.map(g => `
       <section class="group">
         <div class="group-h">${esc(g)} <span class="n">${groups[g].length} no plantão</span></div>
         ${groups[g].map(card).join('')}
       </section>`).join('');
   }
-  const semTel = rows.filter(p => !normPhone(p.TELEFONE)).length;
-  $('#count').innerHTML = `<b>${rows.length}</b> no plantão de ${day}` +
+  $('#list').innerHTML = html || '<div class="empty"><b>Ninguém encontrado</b>Ajuste a busca ou os filtros acima.</div>';
+
+  const todos = [...dest, ...tec];
+  const semTel = todos.filter(p => !normPhone(p.TELEFONE)).length;
+  $('#count').innerHTML = `<b>${todos.length}</b> no plantão de ${day}` +
     (semTel ? ` · ${semTel} sem WhatsApp` : '');
   $('#bar').hidden = false;
 }
 
-function card(p){
+function heroCard(p){
   const tel = normPhone(p.TELEFONE);
   const msg = encodeURIComponent(`Olá ${p.NOME.split(' ')[0]}! Sobre o plantão de manutenção de ${day} —`);
-  const action = tel
-    ? `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${msg}" aria-label="Chamar ${esc(p.NOME)} no WhatsApp">${WA_SVG}Chamar</a>`
-    : `<span class="no-wa">${esc(p.TELEFONE || 'Sem telefone')}</span>`;
-  return `
-    <div class="person">
-      <div class="info">
-        <span class="cargo ${isLead(p.CARGO) ? 'lead' : ''}">${esc(p.CARGO || '—')}</span>
-        <div class="nome">${esc(p.NOME)}</div>
-        <div class="meta">${[p.SETOR, p.HORÁRIO, tel ? p.TELEFONE : ''].filter(Boolean).map(esc).join(' · ')}</div>
-      </div>
-      ${action}
-    </div>`;
+  const lugar = p.REGIONAL === 'BRASIL' ? '' : ' · ' + p.REGIONAL;
+  const acao = tel
+    ? `<a class="btn-wa hbtn" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${msg}" aria-label="Chamar ${esc(p.NOME)} no WhatsApp">${WA_SVG}</a>`
+    : `<span class="hsem">sem<br>tel.</span>`;
+  return `<div class="hcard ${rank(p.CARGO) === 0 ? 'lead' : ''}">
+    <div class="hinfo">
+      <div class="hcargo">${esc(p.CARGO)}${esc(lugar)}</div>
+      <div class="hnome">${esc(p.NOME)}</div>
+    </div>${acao}</div>`;
 }
 
 const dataNum = d => { const [a,b,c] = d.split('/'); return new Date(+c, b-1, +a).getTime(); };
@@ -381,10 +418,10 @@ function renderDays(){
 }
 
 function renderChips(){
-  const regs = [...new Set(all.filter(p => p.DATA === day).map(p => p.REGIONAL.toUpperCase()))]
+  const regs = [...new Set(all.filter(p => p.DATA === day && p.ABA !== 'BRASIL').map(p => p.REGIONAL.toUpperCase()))]
     .filter(Boolean).sort((a,b) => (a === 'BRASIL' ? -1 : b === 'BRASIL' ? 1 : a.localeCompare(b)));
   if (regional !== 'TODAS' && !regs.includes(regional)) regional = 'TODAS';
-  const count = r => all.filter(p => p.DATA === day && (r === 'TODAS' || p.REGIONAL.toUpperCase() === r)).length;
+  const count = r => all.filter(p => p.DATA === day && p.ABA !== 'BRASIL' && (r === 'TODAS' || p.REGIONAL.toUpperCase() === r)).length;
   $('#chips').innerHTML = ['TODAS', ...regs].map(r => `
     <button class="chip ${r === regional ? 'on' : ''}" data-r="${r}">${r}<span class="n">${count(r)}</span></button>`).join('');
   $('#chips').querySelectorAll('.chip').forEach(b =>
@@ -394,11 +431,14 @@ function renderChips(){
 $('#search').oninput = e => { q = e.target.value.trim().toUpperCase(); render(); };
 
 $('#copy').onclick = async () => {
-  const rows = filtered();
-  const txt = `PLANTÃO MANUTENÇÃO — ${day}\n\n` + rows.map(p => {
+  const { dest, tec } = visiveis();
+  const linha = p => {
     const tel = normPhone(p.TELEFONE);
     return `${p.CARGO} ${p.REGIONAL}${p.SETOR ? '/' + p.SETOR : ''} — ${p.NOME} — ${tel ? '+' + tel : 'SEM TELEFONE'}`;
-  }).join('\n');
+  };
+  const txt = `PLANTÃO MANUTENÇÃO — ${day}\n\n` +
+    (dest.length ? `== COORDENAÇÃO ==\n` + dest.map(linha).join('\n') + '\n\n' : '') +
+    (tec.length ? `== TÉCNICOS ==\n` + tec.map(linha).join('\n') : '');
   try {
     await navigator.clipboard.writeText(txt);
     $('#copy').textContent = 'Copiado!';
